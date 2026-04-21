@@ -1,0 +1,37 @@
+services:
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: ast_minio_poc
+    restart: unless-stopped
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-admin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-ChangeThisPassword123!}
+      - MINIO_BROWSER=on
+    command: server /data1 /data2 --console-address ":9090"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./.docker-data/storage_s3/disk1:/data1:rw
+      - ./.docker-data/storage_s3/disk2:/data2:rw
+
+  api:
+    build:
+      context: ..
+      dockerfile: poc/Dockerfile
+    container_name: node_minio_workspace_manager_poc
+    restart: unless-stopped
+    command: npm run dev
+    depends_on:
+      - minio
+    environment:
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_CONTAINER_NAME=ast_minio_poc
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-admin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-ChangeThisPassword123!}
+      - MINIO_ALIAS=${MINIO_ALIAS:-ast-minio-poc}
+      - POC_PORT=${POC_PORT:-3010}
+    ports:
+      - "127.0.0.1:${POC_PORT:-3010}:3010"
+    volumes:
+      - ./src:/app/poc/src

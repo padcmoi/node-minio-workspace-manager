@@ -1,0 +1,4 @@
+node_modules/
+dist/
+.docker-data/
+package-lock.json

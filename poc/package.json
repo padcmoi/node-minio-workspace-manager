@@ -1,0 +1,22 @@
+{
+  "name": "minio-workspace-poc",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "nodemon -L --watch src --ext ts,html --exec \"npm run build && node dist/index.js\"",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@naskot/node-minio-workspace-manager": "file:..",
+    "express": "^5.1.0",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.5",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.6.0",
+    "nodemon": "^3.1.10",
+    "typescript": "^5.9.3"
+  }
+}
