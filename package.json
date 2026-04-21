@@ -1,0 +1,71 @@
+{
+  "name": "@naskot/node-minio-workspace-manager",
+  "version": "1.0.0",
+  "description": "MinIO workspace admin and bucket manager for Node.js with Linux-like mc command orchestration.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/padcmoi/node-minio-workspace-manager"
+  },
+  "homepage": "https://github.com/padcmoi/node-minio-workspace-manager",
+  "bugs": {
+    "url": "https://github.com/padcmoi/node-minio-workspace-manager/issues"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "test": "vitest run",
+    "dev:test": "vitest",
+    "check": "tsc --noEmit",
+    "prepublishOnly": "npm run check && npm run test && npm run build",
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "minio",
+    "s3",
+    "bucket",
+    "workspace",
+    "storage",
+    "mc"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "express": ">=4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.5",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.6.0",
+    "eslint": "^10.2.1",
+    "express": "^5.1.0",
+    "multer": "^2.0.2",
+    "prettier": "^3.8.3",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.58.2",
+    "vitest": "^3.2.4"
+  }
+}
