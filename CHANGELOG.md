@@ -2,4 +2,13 @@
 
 ## [Unreleased] - yyyy-mm-dd
 
-- First commit
+- Extract MinIO workspace manager from starter-template with preserved hardcoded usage flow (`storeId -> bucket-store-*`).
+- Add framework-agnostic service + admin + bucket managers (`upsert/list/info/enable/delete`, `upload/list/delete/download/view`).
+- Add unit and integration tests for utils, service resolution, and admin/bucket behavior.
+- Add Express POC with admin/storage routes and Docker compose MinIO test stack.
+- Add documentation (`README`, `docs/express.md`, `docs/nestjs.md`, `docs/helpers.md`) including explicit MinIO compatibility constraints.
+- Refactor naming from `agency` to global `store` across code, tests, docs, and POC defaults.
+- Add POC web UI (`/`) served from MVC view file (`poc/src/views/home-page.html`) to execute all API actions from a single page.
+- Update POC dev workflow with HTML live reload (`nodemon` watches `ts,html`) and Docker bind mount for live source updates.
+- Update POC default MinIO credentials to `admin` / `ChangeThisPassword123!`.
+- Clarify compatibility statement: future MinIO versions are not supported because the communication mechanism used by this library was removed.
