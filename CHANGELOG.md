@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [Unreleased] - yyyy-mm-dd
+## [1.0.1] - 2026-04-22
 
 - Set dynamic bucket page HTML title in POC route rendering: `/bucket/:storeId` now renders `MinIO POC - bucket-store-<storeId>`.
 - Escape injected bucket label when composing the HTML `<title>` to prevent unsafe characters from being rendered as markup.
