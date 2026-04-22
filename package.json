@@ -1,6 +1,6 @@
 {
   "name": "@naskot/node-minio-workspace-manager",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MinIO workspace admin and bucket manager for Node.js with Linux-like mc command orchestration.",
   "repository": {
     "type": "git",
