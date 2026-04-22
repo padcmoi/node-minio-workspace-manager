@@ -8,6 +8,11 @@ const rootUser = process.env.MINIO_ROOT_USER ?? "admin";
 const rootPassword = process.env.MINIO_ROOT_PASSWORD ?? "ChangeThisPassword123!";
 const alias = process.env.MINIO_ALIAS ?? "ast-minio-poc";
 const execFileAsync = util.promisify(execFileCallback);
+const mcExecEnv = {
+  ...process.env,
+  MC_CONFIG_DIR: "/tmp/mc",
+  HOME: "/tmp",
+};
 
 export const minio = new MinioWorkspaceService({
   endpoint,
@@ -93,27 +98,55 @@ function buildTreeAlias(storeId: string) {
   return `poc-tree-${safe || "store"}`.slice(0, 60);
 }
 
+function isStoreAccessDeniedError(error: unknown) {
+  const stderrRaw =
+    typeof error === "object" && error !== null && "stderr" in error ? (error as { stderr?: string | Buffer }).stderr : undefined;
+  const stderr = typeof stderrRaw === "string" ? stderrRaw : Buffer.isBuffer(stderrRaw) ? stderrRaw.toString("utf8") : "";
+  const message = error instanceof Error ? error.message : "";
+  const combined = `${message}\n${stderr}`;
+  return /access denied|forbidden|not authorized|invalid access|signature|disabled/i.test(combined);
+}
+
+export async function assertStoreAccess(storeId: string) {
+  const store = await minio.getStore(storeId);
+  const treeAlias = buildTreeAlias(storeId);
+  const storeEndpoint = `${store.useSSL ? "https" : "http"}://${store.host}:${store.port}`;
+  const target = `${treeAlias}/${store.bucket}`;
+
+  try {
+    await execFileAsync("mc", ["alias", "set", treeAlias, storeEndpoint, store.accessKey, store.secretKey], {
+      env: mcExecEnv,
+    });
+
+    await execFileAsync("mc", ["ls", "--json", target], {
+      env: mcExecEnv,
+      maxBuffer: 2 * 1024 * 1024,
+    });
+  } catch (error) {
+    throw createMinioWorkspaceError({
+      status: isStoreAccessDeniedError(error) ? 403 : 500,
+      code: isStoreAccessDeniedError(error) ? "store_access_denied" : "store_access_probe_failed",
+      details: {
+        storeId,
+      },
+    });
+  }
+}
+
 export async function listStoreTree(storeId: string, prefix: string = "") {
   const store = await minio.getStore(storeId);
   const treeAlias = buildTreeAlias(storeId);
   const safePrefix = normalizeTreePrefix(prefix);
+  const storeEndpoint = `${store.useSSL ? "https" : "http"}://${store.host}:${store.port}`;
   const target = safePrefix ? `${treeAlias}/${store.bucket}/${safePrefix}` : `${treeAlias}/${store.bucket}`;
 
   try {
-    await execFileAsync("mc", ["alias", "set", treeAlias, endpoint, rootUser, rootPassword], {
-      env: {
-        ...process.env,
-        MC_CONFIG_DIR: "/tmp/mc",
-        HOME: "/tmp",
-      },
+    await execFileAsync("mc", ["alias", "set", treeAlias, storeEndpoint, store.accessKey, store.secretKey], {
+      env: mcExecEnv,
     });
 
     const { stdout } = await execFileAsync("mc", ["ls", "--json", "--recursive", target], {
-      env: {
-        ...process.env,
-        MC_CONFIG_DIR: "/tmp/mc",
-        HOME: "/tmp",
-      },
+      env: mcExecEnv,
       maxBuffer: 20 * 1024 * 1024,
     });
 
@@ -124,10 +157,10 @@ export async function listStoreTree(storeId: string, prefix: string = "") {
       count: objects.length,
       objects,
     };
-  } catch {
+  } catch (error) {
     throw createMinioWorkspaceError({
-      status: 500,
-      code: "tree_list_failed",
+      status: isStoreAccessDeniedError(error) ? 403 : 500,
+      code: isStoreAccessDeniedError(error) ? "store_access_denied" : "tree_list_failed",
       details: {
         storeId,
         prefix: safePrefix,

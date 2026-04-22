@@ -1,6 +1,7 @@
 import type { Request } from "express";
 import path from "node:path";
 import {
+  assertStoreAccess,
   createMinioWorkspaceError,
   listStoreTree,
   minioAdminService,
@@ -44,6 +45,30 @@ function pickPrefix(body: unknown) {
   return value;
 }
 
+function pickEnabled(body: unknown) {
+  if (typeof body !== "object" || body === null) {
+    throw createMinioWorkspaceError({ status: 400, code: "enabled_boolean_required" });
+  }
+
+  const value = (body as Record<string, unknown>).enabled;
+  if (typeof value !== "boolean") {
+    throw createMinioWorkspaceError({ status: 400, code: "enabled_boolean_required" });
+  }
+
+  return value;
+}
+
+function normalizeWorkspaceName(name: string) {
+  const value = name.trim();
+  if (!value) return "";
+
+  let normalized = value;
+  if (normalized.startsWith("bucket-")) normalized = normalized.slice("bucket-".length);
+  if (normalized.startsWith("user-")) normalized = normalized.slice("user-".length);
+  if (normalized.startsWith("store-")) return normalized;
+  return `store-${normalized}`;
+}
+
 function toUploadedFiles(req: Request) {
   const files = (req.files ?? []) as Express.Multer.File[];
   return files.map((file) => {
@@ -56,7 +81,7 @@ function toUploadedFiles(req: Request) {
 }
 
 export async function upsertBucketController(req: Request) {
-  const name = pickParam(req, "name");
+  const name = normalizeWorkspaceName(pickParam(req, "name"));
   const body = req.body as { password?: string; quotaMb?: number } | undefined;
 
   return minioAdminService.upsertBucket(name, {
@@ -66,7 +91,7 @@ export async function upsertBucketController(req: Request) {
 }
 
 export async function deleteBucketController(req: Request) {
-  return minioAdminService.deleteBucket(pickParam(req, "name"));
+  return minioAdminService.deleteBucket(normalizeWorkspaceName(pickParam(req, "name")));
 }
 
 export async function listBucketsController() {
@@ -74,12 +99,13 @@ export async function listBucketsController() {
 }
 
 export async function bucketInfoController(req: Request) {
-  return minioAdminService.getBucketInfo(pickParam(req, "name"));
+  return minioAdminService.getBucketInfo(normalizeWorkspaceName(pickParam(req, "name")));
 }
 
 export async function setBucketEnabledController(req: Request) {
-  const enabled = !!(req.body as { enabled?: boolean } | undefined)?.enabled;
-  return minioAdminService.setBucketEnabled(pickParam(req, "name"), enabled);
+  const enabled = pickEnabled(req.body);
+  const workspaceName = normalizeWorkspaceName(pickParam(req, "name"));
+  return minioAdminService.setBucketEnabled(workspaceName, enabled);
 }
 
 export async function minioMetricsController() {
@@ -212,8 +238,9 @@ export async function viewFileController(req: Request) {
   };
 }
 
-export function bucketPageContextController(req: Request) {
+export async function bucketPageContextController(req: Request) {
   const storeId = pickParam(req, "storeId");
+  await assertStoreAccess(storeId);
   const workspaceName = `store-${storeId}`;
   const bucketLabel = `bucket-${workspaceName}`;
 

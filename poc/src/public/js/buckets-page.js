@@ -23,6 +23,40 @@ const state = {
   buckets: [],
 };
 
+const STORE_WORKSPACE_PREFIX = "store-";
+
+function toWorkspaceName(value) {
+  let normalized = String(value || "").trim();
+  if (!normalized) return "";
+
+  if (normalized.startsWith("bucket-")) normalized = normalized.slice("bucket-".length);
+  if (normalized.startsWith("user-")) normalized = normalized.slice("user-".length);
+
+  if (normalized.startsWith(STORE_WORKSPACE_PREFIX)) return normalized;
+  return `${STORE_WORKSPACE_PREFIX}${normalized}`;
+}
+
+function toStoreId(value) {
+  let normalized = String(value || "").trim();
+  if (!normalized) return "";
+
+  if (normalized.startsWith("bucket-")) normalized = normalized.slice("bucket-".length);
+  if (normalized.startsWith("user-")) normalized = normalized.slice("user-".length);
+  if (normalized.startsWith(STORE_WORKSPACE_PREFIX)) normalized = normalized.slice(STORE_WORKSPACE_PREFIX.length);
+
+  return normalized;
+}
+
+function setBucketNameInputFromWorkspace(value) {
+  byId("bucketName").value = toStoreId(value);
+}
+
+function workspaceNameFromRow(row) {
+  const username = typeof row?.username === "string" ? row.username.trim() : "";
+  if (username.startsWith("user-")) return username.slice("user-".length);
+  return workspaceNameFromBucket(row?.bucket ?? "");
+}
+
 function renderBuckets() {
   if (!Array.isArray(state.buckets) || state.buckets.length === 0) {
     bucketsTableEl.innerHTML = '<tr><td colspan="5" class="px-2 py-3 text-center text-slate-400">No bucket found.</td></tr>';
@@ -32,16 +66,26 @@ function renderBuckets() {
   bucketsTableEl.innerHTML = state.buckets
     .map((workspace) => {
       const bucket = workspace?.bucket ?? "";
-      const workspaceName = workspaceNameFromBucket(bucket);
+      const workspaceName = workspaceNameFromRow(workspace);
       const storeId = guessStoreIdFromBucket(bucket);
       const quotaHard = workspace?.quota?.hard ?? "-";
       const quotaUsage = workspace?.quota?.usage ?? 0;
 
       const useHref = storeId ? `/bucket/${encodeURIComponent(storeId)}` : "";
+      const status = String(workspace?.userStatus ?? "").toLowerCase();
 
-      const useAction = storeId
-        ? `<a href="${useHref}" class="rounded bg-slate-700 px-2 py-1 text-[11px] hover:bg-slate-600">Use</a>`
-        : '<span class="rounded bg-slate-800 px-2 py-1 text-[11px] text-slate-500">Use (n/a)</span>';
+      const useAction = !storeId
+        ? '<span class="rounded bg-slate-800 px-2 py-1 text-[11px] text-slate-500">Use (n/a)</span>'
+        : status === "enabled"
+          ? `<a href="${useHref}" class="rounded bg-slate-700 px-2 py-1 text-[11px] hover:bg-slate-600">Use</a>`
+          : '<span class="rounded bg-slate-800 px-2 py-1 text-[11px] text-slate-500">Use</span>';
+      const toggleAction = !workspaceName
+        ? '<span class="rounded bg-slate-800 px-2 py-1 text-[11px] text-slate-500">Toggle (n/a)</span>'
+        : status === "enabled"
+          ? `<button data-workspace="${workspaceName}" data-bucket="${bucket}" data-enabled="false" class="btnSetBucketEnabledInline rounded bg-amber-500 px-2 py-1 text-[11px] font-medium text-slate-950 hover:bg-amber-400">Disable</button>`
+          : status === "disabled"
+            ? `<button data-workspace="${workspaceName}" data-bucket="${bucket}" data-enabled="true" class="btnSetBucketEnabledInline rounded bg-emerald-500 px-2 py-1 text-[11px] font-medium text-slate-950 hover:bg-emerald-400">Enable</button>`
+            : '<span class="rounded bg-slate-800 px-2 py-1 text-[11px] text-slate-500">Toggle (n/a)</span>';
 
       return `
         <tr class="border-t border-slate-800">
@@ -51,6 +95,7 @@ function renderBuckets() {
           <td class="px-2 py-2">${quotaUsage} / ${quotaHard}</td>
           <td class="px-2 py-2">
             <div class="flex gap-1">
+              ${toggleAction}
               ${useAction}
               <button data-workspace="${workspaceName}" data-bucket="${bucket}" class="btnDeleteBucketInline rounded bg-rose-700 px-2 py-1 text-[11px] hover:bg-rose-600">Delete</button>
             </div>
@@ -65,11 +110,27 @@ function renderBuckets() {
       const workspace = button.getAttribute("data-workspace") || "";
       const bucket = button.getAttribute("data-bucket") || "";
 
-      byId("bucketName").value = workspace;
+      setBucketNameInputFromWorkspace(workspace);
       void withBusy(button, async () => {
         await deleteBucket(workspace, bucket);
       }).catch((error) => {
         writeOutput("ERROR", "DELETE BUCKET", String(error?.message || error));
+      });
+    });
+  }
+
+  for (const button of bucketsTableEl.querySelectorAll(".btnSetBucketEnabledInline")) {
+    button.addEventListener("click", () => {
+      const workspace = button.getAttribute("data-workspace") || "";
+      const bucket = button.getAttribute("data-bucket") || "";
+      const enabled = button.getAttribute("data-enabled") === "true";
+
+      setBucketNameInputFromWorkspace(workspace);
+      void withBusy(button, async () => {
+        await setBucketEnabled(enabled, workspace);
+        writeOutput("INFO", enabled ? "ENABLED" : "DISABLED", { workspaceName: workspace, bucket });
+      }).catch((error) => {
+        writeOutput("ERROR", enabled ? "ENABLE BUCKET" : "DISABLE BUCKET", String(error?.message || error));
       });
     });
   }
@@ -82,9 +143,9 @@ async function loadBuckets() {
 }
 
 async function bucketInfo() {
-  const workspaceName = byId("bucketName").value.trim();
+  const workspaceName = toWorkspaceName(byId("bucketName").value);
   if (!workspaceName) {
-    writeOutput("WARN", "BUCKET INFO", "Bucket name is required.");
+    writeOutput("WARN", "BUCKET INFO", "Store ID is required.");
     return;
   }
 
@@ -98,12 +159,12 @@ async function bucketInfo() {
 }
 
 async function upsertBucket() {
-  const workspaceName = byId("bucketName").value.trim();
+  const workspaceName = toWorkspaceName(byId("bucketName").value);
   const password = byId("bucketPassword").value.trim();
   const quotaMb = Number(byId("bucketQuotaMb").value.trim());
 
   if (!workspaceName) {
-    writeOutput("WARN", "UPSERT BUCKET", "Bucket name is required.");
+    writeOutput("WARN", "UPSERT BUCKET", "Store ID is required.");
     return;
   }
 
@@ -121,10 +182,10 @@ async function upsertBucket() {
   await bucketInfo();
 }
 
-async function setBucketEnabled(enabled) {
-  const workspaceName = byId("bucketName").value.trim();
+async function setBucketEnabled(enabled, workspaceNameOverride = "") {
+  const workspaceName = toWorkspaceName(workspaceNameOverride || byId("bucketName").value);
   if (!workspaceName) {
-    writeOutput("WARN", "BUCKET ENABLE", "Bucket name is required.");
+    writeOutput("WARN", "BUCKET ENABLE", "Store ID is required.");
     return;
   }
 
@@ -140,19 +201,20 @@ async function setBucketEnabled(enabled) {
 }
 
 async function deleteBucket(workspaceName, bucketLabel = "") {
-  if (!workspaceName) {
-    writeOutput("WARN", "DELETE BUCKET", "Bucket name is required.");
+  const normalizedWorkspaceName = toWorkspaceName(workspaceName);
+  if (!normalizedWorkspaceName) {
+    writeOutput("WARN", "DELETE BUCKET", "Store ID is required.");
     return;
   }
 
   await apiRequest({
     method: "DELETE",
-    path: "/api/admin/buckets/" + encodeURIComponent(workspaceName),
+    path: "/api/admin/buckets/" + encodeURIComponent(normalizedWorkspaceName),
     writeOutput,
   });
 
   if (bucketLabel) {
-    writeOutput("INFO", "DELETED", { workspaceName, bucket: bucketLabel });
+    writeOutput("INFO", "DELETED", { workspaceName: normalizedWorkspaceName, bucket: bucketLabel });
   }
 
   bucketInfoRawEl.textContent = "";
@@ -191,7 +253,7 @@ byId("btnDisableBucket").addEventListener("click", () => {
 
 byId("btnDeleteBucketForm").addEventListener("click", () => {
   void withBusy(byId("btnDeleteBucketForm"), async () => {
-    const workspaceName = byId("bucketName").value.trim();
+    const workspaceName = byId("bucketName").value;
     await deleteBucket(workspaceName);
   }).catch((error) => {
     writeOutput("ERROR", "DELETE", String(error?.message || error));

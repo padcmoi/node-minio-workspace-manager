@@ -346,9 +346,15 @@ async function bucketInfo() {
 
 async function loadBucketTree() {
   const path = `/api/storage/${encodeURIComponent(state.storeId)}/tree`;
-  const data = await apiRequest({ method: "GET", path, writeOutput });
+  try {
+    const data = await apiRequest({ method: "GET", path, writeOutput });
+    state.bucketObjects = Array.isArray(data?.objects) ? data.objects : [];
+  } catch (error) {
+    state.bucketObjects = [];
+    renderBucketBrowser();
+    throw error;
+  }
 
-  state.bucketObjects = Array.isArray(data?.objects) ? data.objects : [];
   renderBucketBrowser();
 }
 

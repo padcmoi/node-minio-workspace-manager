@@ -50,7 +50,7 @@ function serializeForInlineScript(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
-function sendBucketView(req: express.Request, res: express.Response) {
+async function sendBucketView(req: express.Request, res: express.Response) {
   const filePath = viewPath("bucket-page.html");
 
   if (!filePath) {
@@ -59,7 +59,7 @@ function sendBucketView(req: express.Request, res: express.Response) {
   }
 
   const html = readFileSync(filePath, "utf8");
-  const context = bucketPageContextController(req);
+  const context = await bucketPageContextController(req);
   const injected = html.replace("__POC_BUCKET_CONTEXT_JSON__", serializeForInlineScript(context));
 
   res.type("html").send(injected);
@@ -86,8 +86,12 @@ router.get("/buckets", (_req, res) => {
   sendView(res, "buckets-page.html");
 });
 
-router.get("/bucket/:storeId", (req, res) => {
-  sendBucketView(req, res);
+router.get("/bucket/:storeId", async (req, res, next) => {
+  try {
+    await sendBucketView(req, res);
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get("/api/health", (_req, res) => {
