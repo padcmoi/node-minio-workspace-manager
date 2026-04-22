@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [Unreleased] - yyyy-mm-dd
+## [1.0.0] - 2026-04-22
 
 - Extract MinIO workspace manager from starter-template with preserved hardcoded usage flow (`storeId -> bucket-store-*`).
 - Add framework-agnostic service + admin + bucket managers (`upsert/list/info/enable/delete`, `upload/list/delete/download/view`).
