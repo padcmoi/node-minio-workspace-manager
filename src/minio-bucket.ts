@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
+import { assertNamespace, dateNowMs, generateRandomHex, joinKey, normalizePart, shQuote } from "./deps/utils";
 import { MinioWorkspaceError } from "./error";
 import { MinioExtends } from "./minio-extends";
-import { assertNamespace, dateNowMs, generateRandomHex, joinKey, normalizePart, shQuote } from "./deps/utils";
 import type { MinioRuntimeOptions, MinioUserListItem, MinioUserUploadItem, S3StoreConfig, UploadedFile } from "./types";
 
 export class MinioBucketManager extends MinioExtends {

@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { MinioWorkspaceError } from "./error";
 import { buildPolicyJson } from "./deps/default-policies";
-import { MinioExtends } from "./minio-extends";
 import { shQuote } from "./deps/utils";
+import { MinioWorkspaceError } from "./error";
+import { MinioExtends } from "./minio-extends";
 import type {
   JsonArray,
   JsonObject,

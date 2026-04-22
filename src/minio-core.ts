@@ -1,9 +1,9 @@
 import type { ExecOptions } from "node:child_process";
 import { exec as execCallback } from "node:child_process";
 import util from "node:util";
-import { MinioWorkspaceError } from "./error";
 import { guessMimeTypeFromKey } from "./deps/mimetypes";
 import { shQuote, slugifyBucketId } from "./deps/utils";
+import { MinioWorkspaceError } from "./error";
 import type { ExecAsyncOptsBase, ExecAsyncResult, JsonArray, JsonObject, MinioRuntimeOptions } from "./types";
 
 const initializedByAlias: Record<string, boolean> = {};
@@ -79,12 +79,9 @@ export abstract class MinioCore {
 
       if (ignoreError) return null;
 
-      this.logWarn(
-        `[S3 Storage] ${where} mc command failed${code ? ` code=${code}` : ""}${signal ? ` signal=${signal}` : ""}`,
-        {
-          command,
-        }
-      );
+      this.logWarn(`[S3 Storage] ${where} mc command failed${code ? ` code=${code}` : ""}${signal ? ` signal=${signal}` : ""}`, {
+        command,
+      });
 
       throw new MinioWorkspaceError({ status: 500, code: "STORAGE_ISSUE" });
     }

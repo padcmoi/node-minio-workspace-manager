@@ -1,6 +1,6 @@
-import type { BucketQuotaState, MinioRuntimeOptions } from "./types";
-import { MinioCore } from "./minio-core";
 import { shQuote } from "./deps/utils";
+import { MinioCore } from "./minio-core";
+import type { BucketQuotaState, MinioRuntimeOptions } from "./types";
 
 export abstract class MinioState extends MinioCore {
   protected readonly quotasState: BucketQuotaState;

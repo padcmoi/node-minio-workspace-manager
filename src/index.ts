@@ -1,11 +1,11 @@
-export { MinioWorkspaceError } from "./error";
-export { MinioAdminManager } from "./minio-admin";
-export { MinioBucketManager } from "./minio-bucket";
-export { MinioWorkspaceService, createMinioWorkspaceService } from "./service";
 export { MINIO_COMPATIBILITY_MAX_TESTED } from "./constants";
 export { buildPolicyJson } from "./deps/default-policies";
 export { guessMimeTypeFromKey, MIME_BY_EXT } from "./deps/mimetypes";
 export { assertNamespace, joinKey, normalizePart, shQuote, slugifyBucketId } from "./deps/utils";
+export { MinioWorkspaceError } from "./error";
+export { MinioAdminManager } from "./minio-admin";
+export { MinioBucketManager } from "./minio-bucket";
+export { createMinioWorkspaceService, MinioWorkspaceService } from "./service";
 export type {
   BucketQuota,
   BucketQuotaState,
