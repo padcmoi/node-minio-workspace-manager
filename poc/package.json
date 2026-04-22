@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "nodemon -L --watch src --ext ts,html --exec \"npm run build && node dist/index.js\"",
+    "dev": "nodemon -L --watch src --ext ts,html,js --exec \"npm run build && node dist/index.js\"",
     "start": "node dist/index.js"
   },
   "dependencies": {

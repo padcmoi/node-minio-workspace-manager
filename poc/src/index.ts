@@ -30,7 +30,7 @@ async function bootstrap() {
 
   app.listen(port, () => {
     console.info(`POC started on http://127.0.0.1:${port}`);
-    console.info("Use admin route to create a bucket first, e.g. POST /admin/buckets/store-demo/upsert");
+    console.info("Use admin API to create a bucket first, e.g. POST /api/admin/buckets/store-demo/upsert");
   });
 }
 

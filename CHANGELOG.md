@@ -9,6 +9,7 @@
 - Add documentation (`README`, `docs/express.md`, `docs/nestjs.md`, `docs/helpers.md`) including explicit MinIO compatibility constraints.
 - Refactor naming from `agency` to global `store` across code, tests, docs, and POC defaults.
 - Add POC web UI (`/`) served from MVC view file (`poc/src/views/home-page.html`) to execute all API actions from a single page.
+- Add POC buckets list UX refinement: inline `Disable` action placed just before `Use` for store access control visibility.
 - Update POC dev workflow with HTML live reload (`nodemon` watches `ts,html`) and Docker bind mount for live source updates.
 - Update POC default MinIO credentials to `admin` / `ChangeThisPassword123!`.
 - Clarify compatibility statement: future MinIO versions are not supported because the communication mechanism used by this library was removed.

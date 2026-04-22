@@ -1,6 +1,12 @@
 import type { Request } from "express";
 import path from "node:path";
-import { createMinioWorkspaceError, minioAdminService, minioBucketService, type UploadedFile } from "../services/minio.service";
+import {
+  createMinioWorkspaceError,
+  listStoreTree,
+  minioAdminService,
+  minioBucketService,
+  type UploadedFile,
+} from "../services/minio.service";
 
 function pickParam(req: Request, key: string) {
   const value = req.params[key];
@@ -76,6 +82,10 @@ export async function setBucketEnabledController(req: Request) {
   return minioAdminService.setBucketEnabled(pickParam(req, "name"), enabled);
 }
 
+export async function minioMetricsController() {
+  return minioAdminService.getMinioMetrics();
+}
+
 export async function uploadFilesController(req: Request) {
   const storeId = pickParam(req, "storeId");
   const namespace = pickParam(req, "namespace");
@@ -101,8 +111,34 @@ export async function uploadFilesController(req: Request) {
   }
 
   const safeRefs = refs.length === files.length ? refs : files.map((_file, index) => `file-${index + 1}`);
+  const result = await bucket.uploadMany(namespace, files, prefix, safeRefs);
 
-  return bucket.uploadMany(namespace, files, prefix, safeRefs);
+  // POC note:
+  // This mapping is the exact place where application code can persist
+  // document tracking data into a database (original file name <-> MinIO generated path/id).
+  const trackingForDb = result.uploaded.map((uploaded, index) => {
+    const originalName = files[index]?.originalname ?? null;
+    const minioFullPath = uploaded.key;
+    const generatedName = minioFullPath.split("/").pop() ?? minioFullPath;
+    const extensionIndex = generatedName.lastIndexOf(".");
+    const generatedHashLikeId = extensionIndex > 0 ? generatedName.slice(0, extensionIndex) : generatedName;
+
+    return {
+      originalName,
+      minioFullPath, // namespace/folders + generated file name
+      generatedName, // generatedName.ext
+      generatedHashLikeId, // generated file id (hash-like)
+      ref: uploaded.ref,
+      size: uploaded.size,
+    };
+  });
+
+  console.info(
+    "[POC][UPLOAD_TRACKING] Here you can track MinIO S3 saved file path (namespace/folders/generated hash-like file name) versus the original uploaded file name for theoretical DB persistence.",
+    trackingForDb
+  );
+
+  return result;
 }
 
 export async function listFilesController(req: Request) {
@@ -112,6 +148,12 @@ export async function listFilesController(req: Request) {
   const bucket = await minioBucketService(storeId);
 
   return bucket.listObjects(namespace, prefix);
+}
+
+export async function listBucketTreeController(req: Request) {
+  const storeId = pickParam(req, "storeId");
+  const prefix = typeof req.query.prefix === "string" ? req.query.prefix : "";
+  return listStoreTree(storeId, prefix);
 }
 
 export async function deleteFilesController(req: Request) {
@@ -167,5 +209,17 @@ export async function viewFileController(req: Request) {
     contentType: bucket.guessMimeTypeFromKey(filename),
     buffer,
     disposition: "inline",
+  };
+}
+
+export function bucketPageContextController(req: Request) {
+  const storeId = pickParam(req, "storeId");
+  const workspaceName = `store-${storeId}`;
+  const bucketLabel = `bucket-${workspaceName}`;
+
+  return {
+    storeId,
+    workspaceName,
+    bucketLabel,
   };
 }
