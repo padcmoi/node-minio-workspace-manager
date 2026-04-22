@@ -50,6 +50,15 @@ function serializeForInlineScript(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 async function sendBucketView(req: express.Request, res: express.Response) {
   const filePath = viewPath("bucket-page.html");
 
@@ -60,7 +69,9 @@ async function sendBucketView(req: express.Request, res: express.Response) {
 
   const html = readFileSync(filePath, "utf8");
   const context = await bucketPageContextController(req);
-  const injected = html.replace("__POC_BUCKET_CONTEXT_JSON__", serializeForInlineScript(context));
+  const injected = html
+    .replace("__POC_BUCKET_TITLE__", escapeHtml(context.bucketLabel))
+    .replace("__POC_BUCKET_CONTEXT_JSON__", serializeForInlineScript(context));
 
   res.type("html").send(injected);
 }
