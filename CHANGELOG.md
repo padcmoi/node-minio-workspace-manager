@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [Unreleased] - yyyy-mm-dd
+## [1.0.2] - 2026-05-03
 
 - Make `upsertBucket` idempotent on existing buckets by using `mc mb --ignore-existing`.
 - Fix `ignoreError` existence checks in admin flow (`upsertBucket`, `deleteBucket`) to rely on `null` responses instead of `try/catch`.
