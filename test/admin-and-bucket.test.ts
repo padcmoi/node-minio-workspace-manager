@@ -23,7 +23,7 @@ describe("MinioAdminManager", () => {
       admin as unknown as { execAsync: (command: string, opts?: { ignoreError?: boolean; ctx?: string }) => Promise<unknown> }
     ).execAsync = vi.fn(async (command: string) => {
       if (command.includes("mc admin user info")) {
-        throw new Error("user_not_found");
+        return null;
       }
       return { stdout: "", stderr: "" };
     });
@@ -31,6 +31,37 @@ describe("MinioAdminManager", () => {
     await expect(admin.upsertBucket("store-demo")).rejects.toMatchObject({
       code: "password_required_for_creation",
     } satisfies Pick<MinioWorkspaceError, "code">);
+
+    (
+      admin as unknown as { execAsync: (command: string, opts?: { ignoreError?: boolean; ctx?: string }) => Promise<unknown> }
+    ).execAsync = originalExec;
+  });
+
+  it("uses ignore-existing for bucket creation", async () => {
+    const admin = new MinioAdminManager({
+      endpoint: "http://minio:9000",
+      alias: "svc-main",
+      containerName: "minio_container",
+      rootUser: "root",
+      rootPassword: "root-password",
+    });
+
+    admin.ensureInit = vi.fn(async () => undefined);
+
+    const originalExec = (
+      admin as unknown as { execAsync: (command: string, opts?: { ignoreError?: boolean; ctx?: string }) => Promise<unknown> }
+    ).execAsync;
+
+    const execMock = vi.fn(async () => ({ stdout: "", stderr: "" }));
+
+    (
+      admin as unknown as { execAsync: (command: string, opts?: { ignoreError?: boolean; ctx?: string }) => Promise<unknown> }
+    ).execAsync = execMock;
+
+    await admin.upsertBucket("store-demo");
+
+    const commands = execMock.mock.calls.map((call) => String(call.at(0) ?? ""));
+    expect(commands.some((command) => command.includes("mc mb --ignore-existing"))).toBe(true);
 
     (
       admin as unknown as { execAsync: (command: string, opts?: { ignoreError?: boolean; ctx?: string }) => Promise<unknown> }

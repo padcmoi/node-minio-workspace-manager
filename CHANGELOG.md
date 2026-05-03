@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [1.0.2] - 2026-05-03
+
+- Make `upsertBucket` idempotent on existing buckets by using `mc mb --ignore-existing`.
+- Fix `ignoreError` existence checks in admin flow (`upsertBucket`, `deleteBucket`) to rely on `null` responses instead of `try/catch`.
+- Improve command failure mapping with explicit MinIO runtime errors:
+  - `workspace_auth_failed` (401) for workspace credential mismatch during alias initialization.
+  - `storage_unreachable` (503) for network/connectivity issues.
+- Fix alias initialization state handling so failed `ensureInit` attempts do not leave aliases cached as initialized.
+- Add unit tests covering:
+  - idempotent bucket creation command flag,
+  - workspace auth error mapping,
+  - retry behavior after failed initialization.
+
 ## [1.0.1] - 2026-04-22
 
 - Set dynamic bucket page HTML title in POC route rendering: `/bucket/:storeId` now renders `MinIO POC - bucket-store-<storeId>`.
