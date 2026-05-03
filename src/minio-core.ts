@@ -41,6 +41,54 @@ export abstract class MinioCore {
     return undefined;
   }
 
+  protected getErrText(error: unknown) {
+    if (typeof error !== "object" || error === null) return "";
+
+    const record = error as Record<string, unknown>;
+    const textParts: string[] = [];
+
+    for (const key of ["stderr", "stdout", "message"] as const) {
+      const value = record[key];
+      if (typeof value === "string") {
+        textParts.push(value);
+        continue;
+      }
+      if (Buffer.isBuffer(value)) {
+        textParts.push(value.toString("utf8"));
+      }
+    }
+
+    return textParts.join("\n").trim();
+  }
+
+  protected mapExecFailureToWorkspaceError(command: string, context: string | undefined, error: unknown) {
+    const detail = this.getErrText(error).toLowerCase();
+    const isAliasInit = context === "ensureInit" && command.includes("mc alias set");
+
+    if (
+      isAliasInit &&
+      (detail.includes("invalid access key") ||
+        detail.includes("access key id") ||
+        detail.includes("signature we calculated does not match") ||
+        detail.includes("provided credentials") ||
+        detail.includes("access denied") ||
+        detail.includes("unauthorized"))
+    ) {
+      return new MinioWorkspaceError({ status: 401, code: "workspace_auth_failed" });
+    }
+
+    if (
+      detail.includes("connection refused") ||
+      detail.includes("no such host") ||
+      detail.includes("i/o timeout") ||
+      detail.includes("network is unreachable")
+    ) {
+      return new MinioWorkspaceError({ status: 503, code: "storage_unreachable" });
+    }
+
+    return new MinioWorkspaceError({ status: 500, code: "STORAGE_ISSUE" });
+  }
+
   protected logInfo(message: string, meta?: unknown) {
     this.logger?.info?.(message, meta);
   }
@@ -83,7 +131,7 @@ export abstract class MinioCore {
         command,
       });
 
-      throw new MinioWorkspaceError({ status: 500, code: "STORAGE_ISSUE" });
+      throw this.mapExecFailureToWorkspaceError(command, context, error);
     }
   }
 
@@ -131,7 +179,7 @@ export abstract class MinioCore {
               }
             );
 
-            reject(new MinioWorkspaceError({ status: 500, code: "STORAGE_ISSUE" }));
+            reject(this.mapExecFailureToWorkspaceError(command, context, error));
             return;
           }
 
@@ -145,19 +193,21 @@ export abstract class MinioCore {
   async ensureInit(bucket?: string) {
     if (!this.enabled) return;
 
+    if (initializedByAlias[this.alias]) return;
+
     try {
-      if (!initializedByAlias[this.alias]) {
-        initializedByAlias[this.alias] = true;
+      await this.execAsync(
+        `mc alias set ${shQuote(this.alias)} ${shQuote(this.endpoint)} ${shQuote(this.accessKey)} ${shQuote(this.secretKey)}`,
+        { ctx: "ensureInit" }
+      );
 
-        await this.execAsync(
-          `mc alias set ${shQuote(this.alias)} ${shQuote(this.endpoint)} ${shQuote(this.accessKey)} ${shQuote(this.secretKey)}`,
-          { ctx: "ensureInit" }
-        );
+      initializedByAlias[this.alias] = true;
+      this.logInfo(`[S3 Storage] user client ready endpoint=${this.endpoint}${bucket ? ` bucket=${bucket}` : ""}`);
+    } catch (error) {
+      delete initializedByAlias[this.alias];
 
-        this.logInfo(`[S3 Storage] user client ready endpoint=${this.endpoint}${bucket ? ` bucket=${bucket}` : ""}`);
-      }
-    } catch {
-      throw new MinioWorkspaceError({ status: 500, code: `[S3 Storage] ${this.constructor.name} error` });
+      if (error instanceof MinioWorkspaceError) throw error;
+      throw new MinioWorkspaceError({ status: 500, code: "STORAGE_ISSUE" });
     }
   }
 
