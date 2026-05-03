@@ -38,12 +38,8 @@ export class MinioAdminManager extends MinioExtends {
 
     const { bucket, username, policyName } = this.resolveNames(name);
 
-    let userExists = true;
-    try {
-      await this.execAsync(`mc admin user info ${shQuote(this.alias)} ${shQuote(username)}`, { ignoreError: true });
-    } catch {
-      userExists = false;
-    }
+    const userExists =
+      (await this.execAsync(`mc admin user info ${shQuote(this.alias)} ${shQuote(username)}`, { ignoreError: true })) !== null;
 
     if (!userExists && !password) {
       throw new MinioWorkspaceError({ status: 400, code: "password_required_for_creation" });
@@ -56,7 +52,7 @@ export class MinioAdminManager extends MinioExtends {
 
     await fs.writeFile(localPolicyPath, policyJSON, "utf8");
 
-    await this.execAsync(`mc mb ${shQuote(`${this.alias}/${bucket}`)}`);
+    await this.execAsync(`mc mb --ignore-existing ${shQuote(`${this.alias}/${bucket}`)}`);
 
     let userCreated = false;
     let passwordChanged = false;
@@ -97,14 +93,9 @@ export class MinioAdminManager extends MinioExtends {
 
     const { bucket, username, policyName } = this.resolveNames(name);
 
-    let exists = true;
-    try {
-      await this.execAsync(`mc ls ${shQuote(`${this.alias}/${bucket}`)}`, { ignoreError: true });
-    } catch {
-      exists = false;
-    }
+    const bucketExists = (await this.execAsync(`mc ls ${shQuote(`${this.alias}/${bucket}`)}`, { ignoreError: true })) !== null;
 
-    if (!exists) {
+    if (!bucketExists) {
       return {
         bucket,
         username,
