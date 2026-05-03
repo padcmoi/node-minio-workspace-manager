@@ -85,4 +85,6 @@ Typical codes:
 - `not_found`
 - `namespace_required`
 - `invalid_namespace`
+- `workspace_auth_failed`
+- `storage_unreachable`
 - `STORAGE_ISSUE`
