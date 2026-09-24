@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [1.0.3] - 2026-09-24
+
+- Build `mc` `RELEASE.2025-04-16T18-13-26Z` from its source in the POC image: `dl.min.io` now answers 410.
+- Build the MinIO server `RELEASE.2025-04-22T22-12-26Z` from its source in the POC stack: Docker Hub and quay.io now refuse its image.
+- Document in the README how to build the pinned server and `mc` from their source.
+
 ## [1.0.2] - 2026-05-03
 
 - Make `upsertBucket` idempotent on existing buckets by using `mc mb --ignore-existing`.

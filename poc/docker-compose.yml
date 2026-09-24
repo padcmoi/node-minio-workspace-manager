@@ -1,6 +1,8 @@
 services:
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    image: minio-src:RELEASE.2025-04-22T22-12-26Z
+    build:
+      context: ./docker/minio
     container_name: ast_minio_poc
     restart: unless-stopped
     environment:
