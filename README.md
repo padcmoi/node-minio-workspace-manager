@@ -17,6 +17,7 @@ Important constraints:
 
 - Versions **higher** than `RELEASE.2025-04-22T22-12-26Z` are not supported: future MinIO releases removed the communication mechanism this library relies on.
 - Versions **older** than `RELEASE.2025-04-22T22-12-26Z` are not guaranteed.
+- The registries and `dl.min.io` no longer serve this release nor its `mc`: build both from their source, as the POC does (`poc/docker/minio/Dockerfile` for the server, the `mc` stage of `poc/Dockerfile` for `mc` `RELEASE.2025-04-16T18-13-26Z`, the one shipped in that image).
 
 ## Install
 
