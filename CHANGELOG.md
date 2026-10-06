@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## [1.1.0] - 2026-10-06
+
+- Read `listBuckets` usage, object count and quota from the bucket gauges MinIO publishes (`mc admin prometheus metrics <alias> bucket`) and account status from `mc admin user list`: two reads for the whole server, where every bucket used to cost five `mc` processes, two of them a `mc du` walking each object to add up a size the server already held. On a server of 7 buckets, one of them 124k objects, the call goes from 19 s to under a second.
+- Drop the `resetStateQuota` call `listBuckets` made per bucket: it spent a second `mc du` and a second `mc quota info` to fill an admin-side state that nothing reads back (`MinioBucketManager` keeps its own).
+- Keep the exact count for anything the scanner has no figure for - a server too old for the endpoint, a bucket created a moment ago - by falling back to `mc du` for those buckets only, 4 at a time instead of one after the other.
+- Add `MinioAdminManager.findWorkspace(bucket)`: does this bucket exist, and does it have an account.
+- Resolve `getStore(storeId)` through `findWorkspace` instead of `listBuckets`, so opening one file no longer walks every object of every bucket on the server. This is the call behind `minioBucketService(storeId)`, so it was paid by every upload, download and object listing.
+- Read the `getMinioMetrics` usage from the cluster gauge instead of `mc du` over the whole alias, which walked every object of every bucket to total what the server already publishes: 9 s on a server holding 150k objects. The walk is kept for a server that does not serve the gauge.
+- Call `ensureInit()` in `getMinioMetrics`, like every other call that shells out: it was the one that assumed the alias had already been set by something else.
+- Add unit tests covering the gauge-based listing, the per-bucket fallback, the per-account fallback when `mc admin user list` cannot be read, `findWorkspace`, and the cluster usage with its fallback.
+
 ## [1.0.3] - 2026-09-24
 
 - Build `mc` `RELEASE.2025-04-16T18-13-26Z` from its source in the POC image: `dl.min.io` now answers 410.
