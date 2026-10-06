@@ -62,7 +62,11 @@ docker compose up --build
 Then test:
 
 - API: `http://127.0.0.1:3010`
-- MinIO console: `http://127.0.0.1:9090`
+- MinIO console: `http://127.0.0.1:29090`
+
+The POC publishes MinIO on 29000/29090 rather than 9000/9090, so it can run on a
+host that already has a MinIO of its own. `MINIO_API_PORT`, `MINIO_CONSOLE_PORT`
+and `POC_PORT` move them.
 
 ## Local checks
 

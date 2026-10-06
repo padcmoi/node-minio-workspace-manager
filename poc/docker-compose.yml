@@ -11,8 +11,8 @@ services:
       - MINIO_BROWSER=on
     command: server /data1 /data2 --console-address ":9090"
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9090:9090"
+      - "127.0.0.1:${MINIO_API_PORT:-29000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-29090}:9090"
     volumes:
       - ./.docker-data/storage_s3/disk1:/data1:rw
       - ./.docker-data/storage_s3/disk2:/data2:rw
