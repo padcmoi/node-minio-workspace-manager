@@ -300,6 +300,96 @@ export abstract class MinioCore {
     return { quota };
   }
 
+  /** The samples of a Prometheus exposition, as `mc admin prometheus metrics` prints them. */
+  protected parseMetricSamples(text: string) {
+    const samples: { name: string; labels: string; value: number }[] = [];
+
+    for (const line of text.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
+      const sample = /^([a-z_]+)(?:\{([^}]*)\})?\s+(\S+)$/.exec(trimmed);
+      if (!sample) continue;
+
+      const value = Number(sample[3]);
+      if (!Number.isFinite(value)) continue;
+
+      samples.push({ name: sample[1], labels: sample[2] ?? "", value });
+    }
+
+    return samples;
+  }
+
+  /**
+   * The three bucket gauges of `mc admin prometheus metrics <alias> bucket`,
+   * keyed by bucket. One read of the server's own figures replaces a `mc du`
+   * per bucket, which walks every object to add up what MinIO already knows.
+   *
+   * A bucket can be reported by several servers at once; they publish the same
+   * cluster-wide figure rather than a share of it, so the highest value is the
+   * value, and summing them would multiply the usage by the size of the pool.
+   */
+  protected parseBucketMetrics(text: string) {
+    const fields: Record<string, "objects" | "usage" | "hard"> = {
+      minio_bucket_usage_object_total: "objects",
+      minio_bucket_usage_total_bytes: "usage",
+      minio_bucket_quota_total_bytes: "hard",
+    };
+
+    const out = new Map<string, { objects?: number; usage?: number; hard?: number }>();
+
+    for (const sample of this.parseMetricSamples(text)) {
+      const field = fields[sample.name];
+      if (!field) continue;
+
+      const bucket = /bucket="([^"]*)"/.exec(sample.labels)?.[1];
+      if (!bucket) continue;
+
+      const entry = out.get(bucket) ?? {};
+      const held = entry[field];
+      if (held === undefined || sample.value > held) entry[field] = sample.value;
+
+      out.set(bucket, entry);
+    }
+
+    return out;
+  }
+
+  /** What the whole server holds, from the cluster gauges; `null` when they are not served. */
+  protected parseClusterUsage(text: string) {
+    let objects: number | undefined;
+    let usage: number | undefined;
+
+    for (const sample of this.parseMetricSamples(text)) {
+      if (sample.name === "minio_cluster_usage_object_total") objects = Math.max(objects ?? 0, sample.value);
+      if (sample.name === "minio_cluster_usage_total_bytes") usage = Math.max(usage ?? 0, sample.value);
+    }
+
+    if (objects === undefined || usage === undefined) return null;
+
+    return { objects, usage };
+  }
+
+  /** The status of every account, from the one line `mc admin user list --json` prints per user. */
+  protected parseUserListJson(text: string) {
+    const out = new Map<string, "enabled" | "disabled">();
+
+    for (const line of text.split("\n")) {
+      const record = this.parseJsonLine(line.trim());
+      if (!record) continue;
+
+      const accessKey = record["accessKey"];
+      const status = record["userStatus"];
+
+      if (typeof accessKey !== "string") continue;
+      if (status !== "enabled" && status !== "disabled") continue;
+
+      out.set(accessKey, status);
+    }
+
+    return out;
+  }
+
   protected parseAdminInfoJson(text: string) {
     const parsed = this.parseJson(text);
     const raw = this.toJsonObject(parsed);

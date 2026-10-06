@@ -13,20 +13,20 @@ describe("MinioWorkspaceService", () => {
       rootPassword: "root-password",
     });
 
-    service.minioAdminService.listBuckets = vi.fn(async () => ({
-      count: 1,
-      workspaces: [
-        {
-          bucket: "bucket-store-demo",
-          username: "user-store-demo",
-          objects: 0,
-          quota: { enable: false, usage: 0 },
-          userStatus: "enabled" as const,
-        },
-      ],
+    const findWorkspace = vi.fn(async () => ({
+      bucket: "bucket-store-demo",
+      username: "user-store-demo",
+      userStatus: "enabled" as const,
     }));
 
+    service.minioAdminService.findWorkspace = findWorkspace;
+    service.minioAdminService.listBuckets = vi.fn(async () => {
+      throw new Error("getStore must not list the whole server");
+    });
+
     const store = await service.getStore("demo");
+
+    expect(findWorkspace).toHaveBeenCalledWith("bucket-store-demo");
     expect(store.bucket).toBe("bucket-store-demo");
     expect(store.accessKey).toBe("user-store-demo");
     expect(store.secretKey).toBe("123456789");
@@ -47,10 +47,7 @@ describe("MinioWorkspaceService", () => {
       rootPassword: "root-password",
     });
 
-    service.minioAdminService.listBuckets = vi.fn(async () => ({
-      count: 0,
-      workspaces: [],
-    }));
+    service.minioAdminService.findWorkspace = vi.fn(async () => null);
 
     await expect(service.getStore("unknown")).rejects.toMatchObject({
       code: "store_not_found",

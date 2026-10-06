@@ -56,41 +56,38 @@ export class MinioWorkspaceService {
     };
   }
 
+  /**
+   * One store, resolved by looking only at that store. It used to list every
+   * workspace on the server - each with its usage, each usage a walk over every
+   * object - to pick one line out of the result and discard the rest.
+   */
   async getStore(storeId: string) {
-    const list = await this.minioAdminService.listBuckets();
-
-    const workspacesByBucket = Object.fromEntries(
-      list.workspaces.map((workspace) => {
-        const fallback = {
-          bucket: workspace.bucket,
-          accessKey: workspace.username,
-          secretKey: this.defaultStoreSecretKey,
-          host: this.workspaceHost,
-          port: this.workspacePort,
-          useSSL: this.workspaceUseSSL,
-        } satisfies S3StoreConfig;
-
-        const mapped = this.mapWorkspaceToStoreConfig?.(
-          {
-            bucket: workspace.bucket,
-            username: workspace.username,
-          },
-          fallback
-        );
-
-        return [workspace.bucket, mapped ?? fallback];
-      })
-    );
-
     const expectedBucketName =
       this.mapStoreIdToBucketName?.(storeId, this.storeBucketPrefix) ?? `${this.storeBucketPrefix}${storeId}`;
 
-    const s3StoreConfig = workspacesByBucket[expectedBucketName];
-    if (!s3StoreConfig) {
+    const workspace = await this.minioAdminService.findWorkspace(expectedBucketName);
+    if (!workspace) {
       throw new MinioWorkspaceError({ status: 404, code: "store_not_found", message: storeId });
     }
 
-    return s3StoreConfig;
+    const fallback = {
+      bucket: workspace.bucket,
+      accessKey: workspace.username,
+      secretKey: this.defaultStoreSecretKey,
+      host: this.workspaceHost,
+      port: this.workspacePort,
+      useSSL: this.workspaceUseSSL,
+    } satisfies S3StoreConfig;
+
+    const mapped = this.mapWorkspaceToStoreConfig?.(
+      {
+        bucket: workspace.bucket,
+        username: workspace.username,
+      },
+      fallback
+    );
+
+    return mapped ?? fallback;
   }
 
   async minioBucketService(storeId: string) {

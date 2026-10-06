@@ -51,3 +51,26 @@ export function dateNowMs() {
 export function generateRandomHex(length: number = 16) {
   return randomBytes(length).toString("hex");
 }
+
+/**
+ * Runs `task` over `items` with at most `limit` in flight, keeping the order of
+ * the results. Every task here spawns an `mc` process, so the limit is what
+ * stops a server with a hundred buckets from forking a hundred clients at once.
+ */
+export async function mapWithConcurrency<T, R>(items: T[], limit: number, task: (item: T) => Promise<R>) {
+  const out: R[] = new Array<R>(items.length);
+  let cursor = 0;
+
+  const worker = async () => {
+    for (;;) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      out[index] = await task(items[index]);
+    }
+  };
+
+  const size = Math.min(Math.max(1, limit), items.length);
+  await Promise.all(Array.from({ length: size }, () => worker()));
+
+  return out;
+}

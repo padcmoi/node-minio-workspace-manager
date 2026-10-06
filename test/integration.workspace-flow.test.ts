@@ -12,17 +12,10 @@ describe("integration: workspace flow", () => {
       runtime: { enabled: true },
     });
 
-    service.minioAdminService.listBuckets = vi.fn(async () => ({
-      count: 1,
-      workspaces: [
-        {
-          bucket: "bucket-store-demo",
-          username: "user-store-demo",
-          objects: 1,
-          quota: { enable: true, hard: 500 * 1024 * 1024, usage: 10 },
-          userStatus: "enabled" as const,
-        },
-      ],
+    service.minioAdminService.findWorkspace = vi.fn(async () => ({
+      bucket: "bucket-store-demo",
+      username: "user-store-demo",
+      userStatus: "enabled" as const,
     }));
 
     const bucket = await service.minioBucketService("demo");
