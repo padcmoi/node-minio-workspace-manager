@@ -7,3 +7,4 @@ coverage/
 poc/node_modules/
 poc/dist/
 poc/.docker-data/
+.trash/
